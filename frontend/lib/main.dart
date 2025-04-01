@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -15,6 +13,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primaryColor: Colors.orange, // Color principal en naranja (UPT)
+        scaffoldBackgroundColor: Colors.white,
+        textTheme: TextTheme(
+          bodyMedium: TextStyle(color: Colors.black),
+          headlineMedium: TextStyle(
+            color: Colors.orange,
+          ), // Títulos en color naranja
+        ),
+      ),
       home: const CSVUploader(),
     );
   }
@@ -50,10 +58,14 @@ class CSVUploaderState extends State<CSVUploader> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://localhost:5000/upload'), // Cambia la URL si es necesario
+      Uri.parse(
+        'http://localhost:5000/upload',
+      ), // Cambia la URL si es necesario
     );
 
-    request.files.add(await http.MultipartFile.fromPath('file', _selectedFile!.path));
+    request.files.add(
+      await http.MultipartFile.fromPath('file', _selectedFile!.path),
+    );
 
     var response = await request.send();
 
@@ -72,76 +84,137 @@ class CSVUploaderState extends State<CSVUploader> {
     return data.isEmpty
         ? Container()
         : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
               ),
-              DataTable(
-                columns: const [
-                  DataColumn(label: Text("ID")),
-                  DataColumn(label: Text("Nombre")),
-                  DataColumn(label: Text("Promedio")),
-                ],
-                rows: data.map((row) {
-                  return DataRow(cells: [
-                    DataCell(Text(row["ID"].toString())),
-                    DataCell(Text(row["Nombre"])),
-                    DataCell(
-                      Text(
-                        row["PROMEDIO"].toString(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: (row["PROMEDIO"] > 7) ? Colors.green : Colors.red,
-                        ),
-                      ),
-                    ),
-                  ]);
-                }).toList(),
-              ),
-            ],
-          );
-  }
-
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(title: const Text("Subir CSV y Filtrar Datos")),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ElevatedButton(
-              onPressed: pickFile,
-              child: const Text("Seleccionar CSV"),
             ),
             const SizedBox(height: 10),
-            if (_selectedFile != null) Text("Archivo seleccionado: ${_selectedFile!.path}"),
-            ElevatedButton(
-              onPressed: uploadCSV,
-              child: const Text("Subir CSV"),
-            ),
-            const SizedBox(height: 20),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: buildDataTable(allStudents, "Datos del Archivo", Colors.black),
-            ),
-            const SizedBox(height: 20),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: buildDataTable(filteredStudents, "Alumnos con Promedio ≤ 7", Colors.red),
+            DataTable(
+              columnSpacing: 20,
+              columns: const [
+                DataColumn(label: Text("ID:")),
+                DataColumn(label: Text("Nombre:")),
+                DataColumn(label: Text("Promedio:")),
+              ],
+              rows:
+                  data.map((row) {
+                    return DataRow(
+                      color: MaterialStateProperty.resolveWith<Color?>((
+                        states,
+                      ) {
+                        return data.indexOf(row) % 2 == 0
+                            ? Colors.grey.shade100
+                            : Colors.white; // Color alterno en filas
+                      }),
+                      cells: [
+                        DataCell(Text(row["ID"].toString())),
+                        DataCell(Text(row["Nombre"])),
+                        DataCell(
+                          Text(
+                            row["PROMEDIO"].toString(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  (row["PROMEDIO"] > 7)
+                                      ? Colors.green
+                                      : Colors
+                                          .red, // Color dependiendo del promedio
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
             ),
           ],
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Subir CSV y Filtrar Datos"),
+        backgroundColor: Colors.orange, // Color de la barra en naranja
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.orange, Colors.orangeAccent], // Gradiente de fondo
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Center(
+                  child: Text(
+                    'Sube tu archivo CSV',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white, // Color blanco para el título
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: pickFile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text("Seleccionar CSV"),
+                ),
+                const SizedBox(height: 10),
+                if (_selectedFile != null)
+                  Text(
+                    "Archivo seleccionado: ${_selectedFile!.path}",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ElevatedButton(
+                  onPressed: uploadCSV,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text("Subir CSV"),
+                ),
+                const SizedBox(height: 20),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: buildDataTable(
+                    allStudents,
+                    "Datos del Archivo",
+                    Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: buildDataTable(
+                    filteredStudents,
+                    "Alumnos con Promedio ≤ 7",
+                    Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
