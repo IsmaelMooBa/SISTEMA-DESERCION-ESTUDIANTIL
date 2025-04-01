@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -100,9 +102,9 @@ class CSVUploaderState extends State<CSVUploader> {
             DataTable(
               columnSpacing: 20,
               columns: const [
-                DataColumn(label: Text("ID:")),
-                DataColumn(label: Text("Nombre:")),
-                DataColumn(label: Text("Promedio:")),
+                DataColumn(label: Text("ID")),
+                DataColumn(label: Text("Nombre")),
+                DataColumn(label: Text("Promedio")),
               ],
               rows:
                   data.map((row) {
@@ -142,76 +144,69 @@ class CSVUploaderState extends State<CSVUploader> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Subir CSV y Filtrar Datos"),
+        title: const Text("Sistema de Predicción de Deserción Estudiantil"),
         backgroundColor: Colors.orange, // Color de la barra en naranja
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.orange, Colors.orangeAccent], // Gradiente de fondo
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
-                Center(
-                  child: Text(
-                    'Sube tu archivo CSV',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white, // Color blanco para el título
-                    ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Center(
+                child: Text(
+                  'Bienvenido al Sistema de Predicción de Deserción Estudiantil',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange, // Título principal en naranja
                   ),
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: pickFile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: const Text("Seleccionar CSV"),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Este sistema permite predecir la deserción estudiantil basado en datos históricos. Puedes cargar un archivo CSV con información de los estudiantes para analizar su desempeño y pronóstico de continuidad.',
+                style: TextStyle(fontSize: 16, color: Colors.black),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: pickFile,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text("Seleccionar CSV"),
+              ),
+              const SizedBox(height: 10),
+              if (_selectedFile != null)
+                Text(
+                  "Archivo seleccionado: ${_selectedFile!.path}",
+                  style: TextStyle(color: Colors.black),
                 ),
-                const SizedBox(height: 10),
-                if (_selectedFile != null)
-                  Text(
-                    "Archivo seleccionado: ${_selectedFile!.path}",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ElevatedButton(
-                  onPressed: uploadCSV,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: const Text("Subir CSV"),
+              ElevatedButton(
+                onPressed: uploadCSV,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text("Subir CSV"),
+              ),
+              const SizedBox(height: 20),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: buildDataTable(
+                  allStudents,
+                  "Datos del Archivo",
+                  Colors.orange,
                 ),
-                const SizedBox(height: 20),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: buildDataTable(
-                    allStudents,
-                    "Datos del Archivo",
-                    Colors.white,
-                  ),
+              ),
+              const SizedBox(height: 20),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: buildDataTable(
+                  filteredStudents,
+                  "Alumnos con Promedio ≤ 7",
+                  Colors.red,
                 ),
-                const SizedBox(height: 20),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: buildDataTable(
-                    filteredStudents,
-                    "Alumnos con Promedio ≤ 7",
-                    Colors.red,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
