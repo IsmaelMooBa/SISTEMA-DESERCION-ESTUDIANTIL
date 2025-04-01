@@ -16,13 +16,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: Colors.orange, // Color principal en naranja (UPT)
+        primaryColor: Color(0xFFFFA726), // Naranja más claro
         scaffoldBackgroundColor: Colors.white,
-        textTheme: TextTheme(
+        textTheme: const TextTheme(
           bodyMedium: TextStyle(color: Colors.black),
-          headlineMedium: TextStyle(
-            color: Colors.orange,
-          ), // Títulos en color naranja
+          headlineMedium: TextStyle(color: Color(0xFFFFA726)),
         ),
       ),
       home: const CSVUploader(),
@@ -41,6 +39,8 @@ class CSVUploaderState extends State<CSVUploader> {
   File? _selectedFile;
   List<dynamic> allStudents = [];
   List<dynamic> filteredStudents = [];
+  bool _tableProjected =
+      false; // Para mostrar el mensaje cuando aparece la tabla
 
   Future<void> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -60,9 +60,7 @@ class CSVUploaderState extends State<CSVUploader> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse(
-        'http://localhost:5000/upload',
-      ), // Cambia la URL si es necesario
+      Uri.parse('http://localhost:5000/upload'),
     );
 
     request.files.add(
@@ -78,6 +76,7 @@ class CSVUploaderState extends State<CSVUploader> {
       setState(() {
         allStudents = jsonData['all_students'];
         filteredStudents = jsonData['filtered_students'];
+        _tableProjected = true; // Se activa cuando ya hay datos en la tabla
       });
     }
   }
@@ -99,42 +98,71 @@ class CSVUploaderState extends State<CSVUploader> {
               ),
             ),
             const SizedBox(height: 10),
-            DataTable(
-              columnSpacing: 20,
-              columns: const [
-                DataColumn(label: Text("ID")),
-                DataColumn(label: Text("Nombre")),
-                DataColumn(label: Text("Promedio")),
-              ],
-              rows:
-                  data.map((row) {
-                    return DataRow(
-                      color: MaterialStateProperty.resolveWith<Color?>((
-                        states,
-                      ) {
-                        return data.indexOf(row) % 2 == 0
-                            ? Colors.grey.shade100
-                            : Colors.white; // Color alterno en filas
-                      }),
-                      cells: [
-                        DataCell(Text(row["ID"].toString())),
-                        DataCell(Text(row["Nombre"])),
-                        DataCell(
-                          Text(
-                            row["PROMEDIO"].toString(),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  (row["PROMEDIO"] > 7)
-                                      ? Colors.green
-                                      : Colors
-                                          .red, // Color dependiendo del promedio
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+                color: Colors.white,
+              ),
+              child: DataTable(
+                columnSpacing: 20,
+                columns: const [
+                  DataColumn(
+                    label: Text(
+                      "ID",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      "Nombre",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      "Promedio",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+                rows:
+                    data.map((row) {
+                      return DataRow(
+                        color: MaterialStateProperty.resolveWith<Color?>((
+                          states,
+                        ) {
+                          return data.indexOf(row) % 2 == 0
+                              ? Colors.grey.shade100
+                              : Colors.white;
+                        }),
+                        cells: [
+                          DataCell(Text(row["ID"].toString())),
+                          DataCell(Text(row["Nombre"])),
+                          DataCell(
+                            Text(
+                              row["PROMEDIO"].toString(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    (row["PROMEDIO"] > 7)
+                                        ? Colors.green
+                                        : Colors.red,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+                        ],
+                      );
+                    }).toList(),
+              ),
             ),
           ],
         );
@@ -145,7 +173,7 @@ class CSVUploaderState extends State<CSVUploader> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Sistema de Predicción de Deserción Estudiantil"),
-        backgroundColor: Colors.orange, // Color de la barra en naranja
+        backgroundColor: Color(0xFFFFA726),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -161,43 +189,95 @@ class CSVUploaderState extends State<CSVUploader> {
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange, // Título principal en naranja
+                    color: Color(0xFFFFA726),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
               Text(
-                'Este sistema permite predecir la deserción estudiantil basado en datos históricos. Puedes cargar un archivo CSV con información de los estudiantes para analizar su desempeño y pronóstico de continuidad.',
+                'Este sistema permite predecir la deserción estudiantil basado en datos históricos. Puedes cargar un archivo CSV con información de los estudiantes para analizar su desempeño.',
                 style: TextStyle(fontSize: 16, color: Colors.black),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
+
+              // Botón para seleccionar archivo
+              ElevatedButton.icon(
                 onPressed: pickFile,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text("Seleccionar CSV"),
+                icon: const Icon(Icons.upload_file, color: Colors.white),
+                label: const Text("Seleccionar CSV"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFFFA726),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
+
               if (_selectedFile != null)
                 Text(
                   "Archivo seleccionado: ${_selectedFile!.path}",
-                  style: TextStyle(color: Colors.black),
+                  style: const TextStyle(color: Colors.black),
                 ),
-              ElevatedButton(
+
+              // Botón para subir archivo
+              ElevatedButton.icon(
                 onPressed: uploadCSV,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text("Subir CSV"),
+                icon: const Icon(Icons.cloud_upload, color: Colors.white),
+                label: const Text("Subir CSV"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFFFA726),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
+
+              // Mensaje cuando la tabla ya se ha proyectado
+              if (_tableProjected)
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 28),
+                        const SizedBox(width: 10),
+                        const Text(
+                          "Se ha proyectado tu tabla correctamente.",
+                          style: TextStyle(fontSize: 16, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: buildDataTable(
                   allStudents,
                   "Datos del Archivo",
-                  Colors.orange,
+                  Color(0xFFFFA726),
                 ),
               ),
               const SizedBox(height: 20),
+
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: buildDataTable(
