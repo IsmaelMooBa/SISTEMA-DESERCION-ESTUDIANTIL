@@ -1,0 +1,23 @@
+        /* General styles for the page */
+        body {
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        h2, h3 {
+            color: #343a40;
+        }
+        .table-responsive {
+            margin-top: 20px;
+        }
+        .table {
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .table th, .table td {
+            vertical-align: middle;
+        }
