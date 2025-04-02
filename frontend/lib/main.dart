@@ -1,33 +1,39 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+// Importa las librerías necesarias
+import 'dart:io'; // Para manejar archivos
+import 'package:flutter/material.dart'; // Para el framework de Flutter
+import 'package:file_picker/file_picker.dart'; // Para seleccionar archivos
+import 'package:http/http.dart' as http; // Para hacer peticiones HTTP
+import 'dart:convert'; // Para trabajar con datos JSON
 
 void main() {
   runApp(const MyApp());
 }
 
+// Clase principal que define la estructura de la aplicación
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false, // Desactiva el banner de depuración
       theme: ThemeData(
-        primaryColor: Color(0xFFFFA726), // Naranja más claro
-        scaffoldBackgroundColor: Colors.white,
+        primaryColor: Color(0xFFFFA726), // Color primario de la app
+        scaffoldBackgroundColor: Colors.white, // Color de fondo del scaffold
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.black),
-          headlineMedium: TextStyle(color: Color(0xFFFFA726)),
+          bodyMedium: TextStyle(color: Colors.black), // Color del texto
+          headlineMedium: TextStyle(
+            color: Color(0xFFFFA726),
+          ), // Color de los encabezados
         ),
       ),
-      home: const CSVUploader(),
+      home:
+          const CSVUploader(), // Pantalla principal que carga un widget para subir CSV
     );
   }
 }
 
+// Widget Stateful para manejar la selección y carga de un archivo CSV
 class CSVUploader extends StatefulWidget {
   const CSVUploader({Key? key}) : super(key: key);
 
@@ -36,64 +42,78 @@ class CSVUploader extends StatefulWidget {
 }
 
 class CSVUploaderState extends State<CSVUploader> {
-  File? _selectedFile;
-  List<dynamic> allStudents = [];
-  List<dynamic> filteredStudents = [];
+  File? _selectedFile; // Archivo seleccionado
+  List<dynamic> allStudents =
+      []; // Lista para almacenar los datos de todos los estudiantes
+  List<dynamic> filteredStudents =
+      []; // Lista para almacenar los estudiantes con promedio ≤ 7
   bool _tableProjected =
-      false; // Para mostrar el mensaje cuando aparece la tabla
+      false; // Bandera para saber si la tabla ha sido proyectada
 
+  // Función para seleccionar un archivo CSV
   Future<void> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['csv'],
+      allowedExtensions: ['csv'], // Solo permite archivos CSV
     );
 
     if (result != null) {
       setState(() {
-        _selectedFile = File(result.files.single.path!);
+        _selectedFile = File(
+          result.files.single.path!,
+        ); // Asigna el archivo seleccionado
       });
     }
   }
 
+  // Función para cargar el archivo CSV al servidor
   Future<void> uploadCSV() async {
-    if (_selectedFile == null) return;
+    if (_selectedFile == null)
+      return; // Verifica si hay un archivo seleccionado
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://localhost:5000/upload'),
+      Uri.parse('http://localhost:5000/upload'), // URL del servidor
     );
 
     request.files.add(
-      await http.MultipartFile.fromPath('file', _selectedFile!.path),
+      await http.MultipartFile.fromPath(
+        'file',
+        _selectedFile!.path,
+      ), // Añade el archivo a la petición
     );
 
-    var response = await request.send();
+    var response = await request.send(); // Envía la solicitud HTTP
 
     if (response.statusCode == 200) {
-      var responseData = await response.stream.bytesToString();
-      var jsonData = json.decode(responseData);
+      var responseData =
+          await response.stream.bytesToString(); // Recibe la respuesta
+      var jsonData = json.decode(responseData); // Decodifica el JSON
 
       setState(() {
-        allStudents = jsonData['all_students'];
-        filteredStudents = jsonData['filtered_students'];
-        _tableProjected = true; // Se activa cuando ya hay datos en la tabla
+        allStudents =
+            jsonData['all_students']; // Asigna los datos de todos los estudiantes
+        filteredStudents =
+            jsonData['filtered_students']; // Asigna los estudiantes filtrados
+        _tableProjected = true; // Establece que la tabla ha sido proyectada
       });
     }
   }
 
+  // Función para construir la tabla de datos
   Widget buildDataTable(List<dynamic> data, String title, Color color) {
     return data.isEmpty
-        ? Container()
+        ? Container() // Si no hay datos, no muestra nada
         : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Text(
-                title,
+                title, // Título de la tabla
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: color,
+                  color: color, // Color del título
                 ),
               ),
             ),
@@ -101,7 +121,10 @@ class CSVUploaderState extends State<CSVUploader> {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 1,
+                ), // Estilo de la tabla
                 boxShadow: [
                   BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -136,17 +159,18 @@ class CSVUploaderState extends State<CSVUploader> {
                 ],
                 rows:
                     data.map((row) {
+                      // Muestra las filas de la tabla
                       return DataRow(
                         color: MaterialStateProperty.resolveWith<Color?>((
                           states,
                         ) {
                           return data.indexOf(row) % 2 == 0
                               ? Colors.grey.shade100
-                              : Colors.white;
+                              : Colors.white; // Alterna el color de las filas
                         }),
                         cells: [
-                          DataCell(Text(row["ID"].toString())),
-                          DataCell(Text(row["Nombre"])),
+                          DataCell(Text(row["ID"].toString())), // Muestra el ID
+                          DataCell(Text(row["Nombre"])), // Muestra el nombre
                           DataCell(
                             Text(
                               row["PROMEDIO"].toString(),
@@ -155,7 +179,8 @@ class CSVUploaderState extends State<CSVUploader> {
                                 color:
                                     (row["PROMEDIO"] > 7)
                                         ? Colors.green
-                                        : Colors.red,
+                                        : Colors
+                                            .red, // Cambia el color según el promedio
                               ),
                             ),
                           ),
@@ -168,6 +193,7 @@ class CSVUploaderState extends State<CSVUploader> {
         );
   }
 
+  // Construcción de la interfaz de usuario
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -200,50 +226,75 @@ class CSVUploaderState extends State<CSVUploader> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-
-              // Botón para seleccionar archivo
-              ElevatedButton.icon(
-                onPressed: pickFile,
-                icon: const Icon(Icons.upload_file, color: Colors.white),
-                label: const Text("Seleccionar CSV"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFFA726),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Column(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed:
+                            pickFile, // Llama a la función para seleccionar archivo
+                        icon: const Icon(
+                          Icons.upload_file,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Seleccionar CSV"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFFFA726),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        "Selecciona el archivo CSV a subir.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+                  const SizedBox(width: 20),
+                  Column(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed:
+                            uploadCSV, // Llama a la función para subir archivo
+                        icon: const Icon(
+                          Icons.cloud_upload,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Subir CSV"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFFFA726),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        "Sube el archivo CSV seleccionado.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 10),
-
               if (_selectedFile != null)
                 Text(
                   "Archivo seleccionado: ${_selectedFile!.path}",
                   style: const TextStyle(color: Colors.black),
                 ),
-
-              // Botón para subir archivo
-              ElevatedButton.icon(
-                onPressed: uploadCSV,
-                icon: const Icon(Icons.cloud_upload, color: Colors.white),
-                label: const Text("Subir CSV"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFFA726),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                ),
-              ),
               const SizedBox(height: 20),
-
-              // Mensaje cuando la tabla ya se ha proyectado
               if (_tableProjected)
                 Card(
                   elevation: 4,
@@ -265,9 +316,7 @@ class CSVUploaderState extends State<CSVUploader> {
                     ),
                   ),
                 ),
-
               const SizedBox(height: 20),
-
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: buildDataTable(
@@ -277,7 +326,6 @@ class CSVUploaderState extends State<CSVUploader> {
                 ),
               ),
               const SizedBox(height: 20),
-
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: buildDataTable(
