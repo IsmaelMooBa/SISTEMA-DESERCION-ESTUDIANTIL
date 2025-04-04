@@ -1,44 +1,49 @@
-// Importa las librerías necesarias
-import 'dart:io'; // Para manejar archivos
-import 'package:flutter/material.dart'; // Para el framework de Flutter
-import 'package:file_picker/file_picker.dart'; // Para seleccionar archivos
-import 'package:http/http.dart' as http; // Para hacer peticiones HTTP
-import 'dart:convert'; // Para trabajar con datos JSON
+// ============================
+//  Importación de paquetes
+// ============================
 
-// Punto de entrada de la aplicación
+import 'dart:convert'; // Para convertir CSV a JSON
+import 'dart:io'; // Para manejar archivos locales
+import 'package:flutter/material.dart'; // Para crear la interfaz
+import 'package:file_picker/file_picker.dart'; // Para seleccionar archivos
+import 'package:csv/csv.dart'; // Para leer contenido CSV
+
+// ============================
+//  Punto de entrada principal
+// ============================
+
 void main() {
   runApp(const MyApp());
 }
 
-// Widget principal de la aplicación
+// ============================
+//  Widget principal de la app
+// ============================
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Oculta la etiqueta de depuración
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: const Color(
-          0xFFFFA726,
-        ), // Color primario de la aplicación
-        scaffoldBackgroundColor: Colors.white, // Color de fondo de la pantalla
+        primaryColor: const Color(0xFFFFA726),
+        scaffoldBackgroundColor: Colors.white,
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(
-            color: Colors.black,
-          ), // Estilo de texto para el cuerpo
-          headlineMedium: TextStyle(
-            color: Color(0xFFFFA726),
-          ), // Estilo de texto para los encabezados
+          bodyMedium: TextStyle(color: Colors.black),
+          headlineMedium: TextStyle(color: Color(0xFFFFA726)),
         ),
       ),
-      home:
-          const CSVUploader(), // Establece CSVUploader como la pantalla principal
+      home: const CSVUploader(),
     );
   }
 }
 
-// Widget Stateful para la carga de archivos CSV
+// ============================
+//  Pantalla para subir y mostrar CSV
+// ============================
+
 class CSVUploader extends StatefulWidget {
   const CSVUploader({Key? key}) : super(key: key);
 
@@ -46,175 +51,161 @@ class CSVUploader extends StatefulWidget {
   CSVUploaderState createState() => CSVUploaderState();
 }
 
-// Estado del widget CSVUploader
+// ============================
+//  Estado del widget CSVUploader
+// ============================
+
 class CSVUploaderState extends State<CSVUploader> {
   File? _selectedFile; // Archivo CSV seleccionado
-  List<dynamic> allStudents = []; // Lista de todos los estudiantes
-  List<dynamic> filteredStudents = []; // Lista de estudiantes filtrados
-  bool _tableProjected = false; // Indica si la tabla se ha proyectado
-  final TextEditingController _chatController =
-      TextEditingController(); // Controlador del campo de chat
-  String _chatResponse = ""; // Respuesta del chat
+  List<List<dynamic>> _csvData = []; // Datos cargados desde el CSV
+  bool _tableProjected = false; // Indica si se proyectó la tabla
+  bool _isLoading = false; // Indica si se esta cargando el archivo
 
-  // Función para seleccionar un archivo CSV
+  // ============================
+  //  Función para seleccionar el archivo CSV
+  // ============================
+
   Future<void> pickFile() async {
+    setState(() {
+      _isLoading = true; // Empieza la carga
+    });
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );
 
-    if (result != null) {
+    if (result != null && result.files.single.path != null) {
       setState(() {
         _selectedFile = File(result.files.single.path!);
+        _tableProjected = false;
       });
-    }
-  }
 
-  // Función para subir el archivo CSV al servidor
-  Future<void> uploadCSV() async {
-    if (_selectedFile == null) return;
-
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('http://localhost:5000/upload'),
-    );
-
-    request.files.add(
-      await http.MultipartFile.fromPath('file', _selectedFile!.path),
-    );
-
-    var response = await request.send();
-
-    if (response.statusCode == 200) {
-      var responseData = await response.stream.bytesToString();
-      var jsonData = json.decode(responseData);
+      // Lee el contenido del archivo CSV
+      final input = _selectedFile!.openRead();
+      final fields =
+          await input
+              .transform(utf8.decoder)
+              .transform(CsvToListConverter())
+              .toList();
 
       setState(() {
-        allStudents = jsonData['all_students'];
-        filteredStudents = jsonData['filtered_students'];
+        _csvData = fields;
         _tableProjected = true;
+        _isLoading = false; // Termina la carga
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se seleccionó un archivo CSV.')),
+      );
+      setState(() {
+        _isLoading = false; // Termina la carga
       });
     }
   }
 
-  // Función para construir la tabla de datos
-  Widget buildDataTable(List<dynamic> data, String title, Color color) {
-    return data.isEmpty
-        ? Container()
-        : Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-                color: Colors.white,
-              ),
-              child: DataTable(
-                columnSpacing: 20,
-                columns: const [
-                  DataColumn(
-                    label: Text(
-                      "ID",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "Nombre",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "Promedio",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "Análisis",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-                rows:
-                    data.map((row) {
-                      String analysis =
-                          row["PROMEDIO"] <= 7
-                              ? "⚠️ Riesgo de deserción"
-                              : "✅ Buen rendimiento";
-                      return DataRow(
-                        color: MaterialStateProperty.resolveWith<Color?>((
-                          states,
-                        ) {
-                          return data.indexOf(row) % 2 == 0
-                              ? Colors.grey.shade100
-                              : Colors.white;
-                        }),
-                        cells: [
-                          DataCell(Text(row["ID"].toString())),
-                          DataCell(Text(row["Nombre"])),
-                          DataCell(
-                            Text(
-                              row["PROMEDIO"].toString(),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    (row["PROMEDIO"] > 7)
-                                        ? Colors.green
-                                        : Colors.red,
-                              ),
-                            ),
-                          ),
-                          DataCell(Text(analysis)),
-                        ],
-                      );
-                    }).toList(),
-              ),
-            ),
-          ],
-        );
+  // ============================
+  //  Función para filtrar estudiantes reprobados
+  // ============================
+
+  List<List<dynamic>> getReprobados(List<List<dynamic>> data) {
+    if (data.isEmpty) return [];
+
+    List<List<dynamic>> reprobados = [data[0]]; // Incluye los encabezados
+    for (int i = 1; i < data.length; i++) {
+      for (int j = 0; j < data[i].length; j++) {
+        if (data[i][j] is num && data[i][j] < 7) {
+          reprobados.add(data[i]);
+          break; // Agrega la fila solo una vez
+        }
+      }
+    }
+    return reprobados;
   }
 
-  // Función para procesar las consultas del chat
-  void handleChatQuery() {
-    setState(() {
-      String query = _chatController.text.toLowerCase();
-      if (query.contains("promedio menor a 7")) {
-        _chatResponse =
-            "Hay ${filteredStudents.length} alumnos con promedio ≤ 7.";
-      } else if (query.contains("riesgo de deserción")) {
-        _chatResponse =
-            "Hay ${filteredStudents.length} alumnos en riesgo de deserción.";
-      } else if (query.contains("promedio mayor a 7")) {
-        _chatResponse =
-            "Hay ${allStudents.length - filteredStudents.length} alumnos con promedio > 7.";
-      } else {
-        _chatResponse =
-            "No entiendo la consulta. Por favor, intenta con otra pregunta.";
-      }
-    });
+  // ============================
+  //  Función para construir la tabla de forma dinámica
+  // ============================
+
+  Widget buildDataTable(List<List<dynamic>> data) {
+    if (data.isEmpty) return Container();
+
+    final headers = data[0]; // Primera fila = encabezados
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Text(
+            "Datos CSV",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal, // Soporta muchas columnas
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+              color: Colors.white,
+            ),
+            child: DataTable(
+              columnSpacing: 20,
+              columns:
+                  headers.map((header) {
+                    return DataColumn(
+                      label: Text(
+                        header.toString(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }).toList(),
+              rows:
+                  data.sublist(1).map((row) {
+                    return DataRow(
+                      cells:
+                          row.map((cell) {
+                            Color cellColor = Colors.black; // Color por defecto
+                            if (cell is num) {
+                              if (cell < 7) {
+                                cellColor =
+                                    Colors.red; // Calificación baja en rojo
+                              } else {
+                                cellColor =
+                                    Colors.green; // Calificación buena en verde
+                              }
+                            }
+                            return DataCell(
+                              Text(
+                                cell.toString(),
+                                style: TextStyle(color: cellColor),
+                              ),
+                            );
+                          }).toList(),
+                    );
+                  }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
   }
+
+  // ============================
+  //  Interfaz principal
+  // ============================
 
   @override
   Widget build(BuildContext context) {
@@ -227,10 +218,10 @@ class CSVUploaderState extends State<CSVUploader> {
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
+
+              // Título principal
               Center(
                 child: Text(
                   'Bienvenido al Sistema de Predicción de Deserción Estudiantil',
@@ -241,44 +232,19 @@ class CSVUploaderState extends State<CSVUploader> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
+
+              // Descripción del sistema
               Text(
                 'Este sistema permite predecir la deserción estudiantil basado en datos históricos. Puedes cargar un archivo CSV con información de los estudiantes para analizar su desempeño.',
                 style: const TextStyle(fontSize: 16, color: Colors.black),
                 textAlign: TextAlign.center,
               ),
+
               const SizedBox(height: 20),
-              // Sección de explicación de los botones
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Funcionalidad de los botones:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Seleccionar CSV: Permite elegir un archivo CSV desde tu dispositivo.',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Subir CSV: Sube el archivo CSV seleccionado al servidor para procesar los datos.',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
+
+              // Botón para subir CSV
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -309,43 +275,21 @@ class CSVUploaderState extends State<CSVUploader> {
                       ),
                     ],
                   ),
-                  const SizedBox(width: 20), // Espacio entre los botones
-                  Column(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: uploadCSV,
-                        icon: const Icon(
-                          Icons.cloud_upload,
-                          color: Colors.white,
-                        ),
-                        label: const Text("Subir CSV"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFA726),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        "Sube el archivo CSV seleccionado.",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
                 ],
               ),
+
               const SizedBox(height: 10),
+
+              // Ruta del archivo
               if (_selectedFile != null)
                 Text(
                   "Archivo seleccionado: ${_selectedFile!.path}",
                   style: const TextStyle(color: Colors.black),
                 ),
+
               const SizedBox(height: 20),
+
+              // Confirmación de carga
               if (_tableProjected)
                 Card(
                   elevation: 4,
@@ -367,51 +311,35 @@ class CSVUploaderState extends State<CSVUploader> {
                     ),
                   ),
                 ),
+
               const SizedBox(height: 20),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: buildDataTable(
-                  allStudents,
-                  "Alumnos en General",
-                  Colors.blue,
-                ),
-              ),
+
+              // Indicador de carga
+              if (_isLoading)
+                const CircularProgressIndicator()
+              else
+                buildDataTable(_csvData), // Tabla de datos CSV
+
               const SizedBox(height: 20),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: buildDataTable(
-                  filteredStudents,
-                  "Alumnos en Riesgo",
-                  Colors.red,
-                ),
-              ),
-              const SizedBox(height: 40),
-              Column(
-                children: [
-                  TextField(
-                    controller: _chatController,
-                    decoration: const InputDecoration(
-                      hintText: "Haz una pregunta...",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.question_answer),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed: handleChatQuery,
-                    icon: const Icon(Icons.chat),
-                    label: const Text("Enviar Pregunta"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFA726),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    _chatResponse,
-                    style: const TextStyle(fontSize: 16, color: Colors.black),
-                  ),
-                ],
-              ),
+
+              // Tabla de estudiantes reprobados
+              if (_tableProjected)
+                if (getReprobados(_csvData).length > 1)
+                  Column(
+                    children: [
+                      const Text(
+                        "Estudiantes Reprobados",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      buildDataTable(getReprobados(_csvData)),
+                    ],
+                  )
+                else
+                  const Text("No se encontraron estudiantes reprobados."),
             ],
           ),
         ),
