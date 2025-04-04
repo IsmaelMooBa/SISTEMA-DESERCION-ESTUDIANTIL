@@ -82,21 +82,6 @@ class CSVUploaderState extends State<CSVUploader> {
     }
   }
 
-  List<List<dynamic>> getReprobados(List<List<dynamic>> data) {
-    if (data.isEmpty) return [];
-
-    List<List<dynamic>> reprobados = [data[0]];
-    for (int i = 1; i < data.length; i++) {
-      for (int j = 1; j < data[i].length; j++) {
-        if (data[i][j] is num && data[i][j] < 7) {
-          reprobados.add(data[i]);
-          break;
-        }
-      }
-    }
-    return reprobados;
-  }
-
   void calculateAverages() {
     List<Map<String, dynamic>> averages = [];
     List<String> recomendaciones = [];
@@ -138,7 +123,6 @@ class CSVUploaderState extends State<CSVUploader> {
         'calificaciones': calificaciones,
       });
 
-      // Generar recomendaciones
       if (tieneReprobado) {
         recomendaciones.add(
           "$nombre: Se recomienda atención personalizada y apoyo en materias clave.");
@@ -308,10 +292,10 @@ class CSVUploaderState extends State<CSVUploader> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-              Center(
+              const Center(
                 child: Text(
                   'Bienvenido al Sistema de Predicción de Deserción Estudiantil',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFFFA726),
@@ -319,9 +303,9 @@ class CSVUploaderState extends State<CSVUploader> {
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
+              const Text(
                 'Instrucciones: Ingresa un archivo de Excel guardado con extensión CSV (separado por comas), procura seleccionar archivos que contengan nombre de los alumnos como primera columna y materias en las primeras filas.',
-                style: const TextStyle(fontSize: 16, color: Colors.black),
+                style: TextStyle(fontSize: 16, color: Colors.black),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -331,6 +315,7 @@ class CSVUploaderState extends State<CSVUploader> {
                 label: const Text("Seleccionar archivo"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFA726),
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -378,32 +363,15 @@ class CSVUploaderState extends State<CSVUploader> {
                 const CircularProgressIndicator()
               else
                 buildDataTable(_csvData),
-              const SizedBox(height: 20),
-              if (_tableProjected)
-                if (getReprobados(_csvData).length > 1)
-                  Column(
-                    children: [
-                      const Text(
-                        "Estudiantes Reprobados",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      buildDataTable(getReprobados(_csvData)),
-                    ],
-                  )
-                else
-                  const Text("No se encontraron estudiantes reprobados."),
               const SizedBox(height: 30),
               if (_tableProjected)
                 ElevatedButton.icon(
                   onPressed: calculateAverages,
                   icon: const Icon(Icons.calculate, color: Colors.white),
-                  label: const Text("Calcular Promedios"),  
+                  label: const Text("Calcular Promedios"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 234, 165, 6),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
