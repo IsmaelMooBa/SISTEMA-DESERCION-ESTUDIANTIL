@@ -60,6 +60,7 @@ class CSVUploaderState extends State<CSVUploader> {
   List<List<dynamic>> _csvData = []; // Datos cargados desde el CSV
   bool _tableProjected = false; // Indica si se proyectó la tabla
   bool _isLoading = false; // Indica si se esta cargando el archivo
+  List<String> _aiRecommendations = []; // Recomendaciones de IA
 
   // ============================
   //  Función para seleccionar el archivo CSV
@@ -68,6 +69,7 @@ class CSVUploaderState extends State<CSVUploader> {
   Future<void> pickFile() async {
     setState(() {
       _isLoading = true; // Empieza la carga
+      _aiRecommendations.clear(); // Limpia recomendaciones
     });
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -120,6 +122,70 @@ class CSVUploaderState extends State<CSVUploader> {
       }
     }
     return reprobados;
+  }
+
+  // ============================
+  //  IA simulada: recomendaciones personalizadas
+  // ============================
+
+  // Genera recomendaciones "inteligentes" con base en el rendimiento académico
+  void generateAIRecommendations() {
+    List<String> recomendaciones = [];
+
+    // Verificamos si hay suficientes filas de datos
+    if (_csvData.length < 2) return;
+
+    for (int i = 1; i < _csvData.length; i++) {
+      final fila = _csvData[i];
+      String nombre =
+          fila[0].toString(); // Suponemos que la columna 0 es nombre
+
+      bool tieneReprobado = false;
+      double sum = 0; // <-- Corregido: debe ser double
+      int count = 0;
+
+      for (int j = 1; j < fila.length; j++) {
+        double? valor;
+
+        // Intentamos convertir el valor a double desde num o String
+        if (fila[j] is num) {
+          valor = (fila[j] as num).toDouble();
+        } else if (fila[j] is String) {
+          valor = double.tryParse(fila[j]);
+        }
+
+        if (valor != null) {
+          count++;
+          sum += valor;
+          if (valor < 7) tieneReprobado = true;
+        }
+      }
+
+      double promedio = count > 0 ? sum / count : 0;
+
+      // Reglas de "IA básica" para sugerencias personalizadas
+      if (tieneReprobado) {
+        recomendaciones.add(
+          "$nombre: Se recomienda atención personalizada y apoyo en materias clave.",
+        );
+      } else if (promedio >= 9) {
+        recomendaciones.add(
+          "$nombre: Excelente rendimiento, mantener constancia. Considerar retos adicionales o mentorías.",
+        );
+      } else if (promedio >= 7) {
+        recomendaciones.add(
+          "$nombre: Desempeño aceptable, revisar asistencia o hábitos de estudio.",
+        );
+      } else {
+        recomendaciones.add(
+          "$nombre: Bajo rendimiento general. Evaluar posibles factores externos y plan de mejora.",
+        );
+      }
+    }
+
+    setState(() {
+      _aiRecommendations = recomendaciones;
+    });
   }
 
   // ============================
@@ -340,6 +406,47 @@ class CSVUploaderState extends State<CSVUploader> {
                   )
                 else
                   const Text("No se encontraron estudiantes reprobados."),
+
+              const SizedBox(height: 30),
+
+              // Botón para generar recomendaciones IA
+              if (_tableProjected)
+                ElevatedButton.icon(
+                  onPressed: generateAIRecommendations,
+                  icon: const Icon(Icons.smart_toy),
+                  label: const Text("Generar Recomendaciones IA"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
+              // Recomendaciones IA
+              if (_aiRecommendations.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Recomendaciones de IA:",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ..._aiRecommendations.map((e) {
+                      return Text(e, style: const TextStyle(fontSize: 16));
+                    }).toList(),
+                  ],
+                ),
             ],
           ),
         ),
