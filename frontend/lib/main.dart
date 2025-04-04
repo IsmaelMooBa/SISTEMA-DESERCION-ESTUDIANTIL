@@ -1,24 +1,12 @@
-// ============================
-//  Importación de paquetes
-// ============================
-
-import 'dart:convert'; // Para convertir CSV a JSON
-import 'dart:io'; // Para manejar archivos locales
-import 'package:flutter/material.dart'; // Para crear la interfaz
-import 'package:file_picker/file_picker.dart'; // Para seleccionar archivos
-import 'package:csv/csv.dart'; // Para leer contenido CSV
-
-// ============================
-//  Punto de entrada principal
-// ============================
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:csv/csv.dart';
 
 void main() {
   runApp(const MyApp());
 }
-
-// ============================
-//  Widget principal de la app
-// ============================
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -40,10 +28,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ============================
-//  Pantalla para subir y mostrar CSV
-// ============================
-
 class CSVUploader extends StatefulWidget {
   const CSVUploader({Key? key}) : super(key: key);
 
@@ -51,26 +35,21 @@ class CSVUploader extends StatefulWidget {
   CSVUploaderState createState() => CSVUploaderState();
 }
 
-// ============================
-//  Estado del widget CSVUploader
-// ============================
-
 class CSVUploaderState extends State<CSVUploader> {
-  File? _selectedFile; // Archivo CSV seleccionado
-  List<List<dynamic>> _csvData = []; // Datos cargados desde el CSV
-  bool _tableProjected = false; // Indica si se proyectó la tabla
-  bool _isLoading = false; // Indica si se esta cargando el archivo
-  List<String> _aiRecommendations = []; // Recomendaciones de IA
-
-  // ============================
-  //  Función para seleccionar el archivo CSV
-  // ============================
+  File? _selectedFile;
+  List<List<dynamic>> _csvData = [];
+  bool _tableProjected = false;
+  bool _isLoading = false;
+  List<String> _aiRecommendations = [];
+  List<Map<String, dynamic>> _studentAverages = [];
 
   Future<void> pickFile() async {
     setState(() {
-      _isLoading = true; // Empieza la carga
-      _aiRecommendations.clear(); // Limpia recomendaciones
+      _isLoading = true;
+      _aiRecommendations.clear();
+      _studentAverages.clear();
     });
+
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
@@ -82,72 +61,60 @@ class CSVUploaderState extends State<CSVUploader> {
         _tableProjected = false;
       });
 
-      // Lee el contenido del archivo CSV
       final input = _selectedFile!.openRead();
-      final fields =
-          await input
-              .transform(utf8.decoder)
-              .transform(CsvToListConverter())
-              .toList();
+      final fields = await input
+          .transform(utf8.decoder)
+          .transform(CsvToListConverter())
+          .toList();
 
       setState(() {
         _csvData = fields;
         _tableProjected = true;
-        _isLoading = false; // Termina la carga
+        _isLoading = false;
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se seleccionó un archivo CSV.')),
       );
       setState(() {
-        _isLoading = false; // Termina la carga
+        _isLoading = false;
       });
     }
   }
 
-  // ============================
-  //  Función para filtrar estudiantes reprobados
-  // ============================
-
   List<List<dynamic>> getReprobados(List<List<dynamic>> data) {
     if (data.isEmpty) return [];
 
-    List<List<dynamic>> reprobados = [data[0]]; // Incluye los encabezados
+    List<List<dynamic>> reprobados = [data[0]];
     for (int i = 1; i < data.length; i++) {
-      for (int j = 0; j < data[i].length; j++) {
+      for (int j = 1; j < data[i].length; j++) {
         if (data[i][j] is num && data[i][j] < 7) {
           reprobados.add(data[i]);
-          break; // Agrega la fila solo una vez
+          break;
         }
       }
     }
     return reprobados;
   }
 
-  // ============================
-  //  IA simulada: recomendaciones personalizadas
-  // ============================
-
-  // Genera recomendaciones "inteligentes" con base en el rendimiento académico
-  void generateAIRecommendations() {
+  void calculateAverages() {
+    List<Map<String, dynamic>> averages = [];
     List<String> recomendaciones = [];
 
-    // Verificamos si hay suficientes filas de datos
     if (_csvData.length < 2) return;
 
     for (int i = 1; i < _csvData.length; i++) {
       final fila = _csvData[i];
-      String nombre =
-          fila[0].toString(); // Suponemos que la columna 0 es nombre
+      String nombre = fila[0].toString();
 
       bool tieneReprobado = false;
-      double sum = 0; // <-- Corregido: debe ser double
+      double sum = 0;
       int count = 0;
+      List<double> calificaciones = [];
 
       for (int j = 1; j < fila.length; j++) {
         double? valor;
 
-        // Intentamos convertir el valor a double desde num o String
         if (fila[j] is num) {
           valor = (fila[j] as num).toDouble();
         } else if (fila[j] is String) {
@@ -157,52 +124,116 @@ class CSVUploaderState extends State<CSVUploader> {
         if (valor != null) {
           count++;
           sum += valor;
+          calificaciones.add(valor);
           if (valor < 7) tieneReprobado = true;
         }
       }
 
       double promedio = count > 0 ? sum / count : 0;
 
-      // Reglas de "IA básica" para sugerencias personalizadas
+      averages.add({
+        'nombre': nombre,
+        'promedio': promedio,
+        'tieneReprobado': tieneReprobado,
+        'calificaciones': calificaciones,
+      });
+
+      // Generar recomendaciones
       if (tieneReprobado) {
         recomendaciones.add(
-          "$nombre: Se recomienda atención personalizada y apoyo en materias clave.",
-        );
+          "$nombre: Se recomienda atención personalizada y apoyo en materias clave.");
       } else if (promedio >= 9) {
         recomendaciones.add(
-          "$nombre: Excelente rendimiento, mantener constancia. Considerar retos adicionales o mentorías.",
-        );
+          "$nombre: Excelente rendimiento, mantener constancia. Considerar retos adicionales.");
       } else if (promedio >= 7) {
         recomendaciones.add(
-          "$nombre: Desempeño aceptable, revisar asistencia o hábitos de estudio.",
-        );
+          "$nombre: Desempeño aceptable, revisar asistencia o hábitos de estudio.");
       } else {
         recomendaciones.add(
-          "$nombre: Bajo rendimiento general. Evaluar posibles factores externos y plan de mejora.",
-        );
+          "$nombre: Bajo rendimiento general. Evaluar posibles factores externos.");
       }
     }
 
     setState(() {
+      _studentAverages = averages;
       _aiRecommendations = recomendaciones;
     });
   }
 
-  // ============================
-  //  Función para construir la tabla de forma dinámica
-  // ============================
+  Widget _buildAverageCard(Map<String, dynamic> student) {
+    Color cardColor = student['tieneReprobado']
+        ? Colors.orange[100]!
+        : student['promedio'] >= 7
+            ? Colors.green[100]!
+            : Colors.red[100]!;
+
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  student['nombre'],
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Chip(
+                  backgroundColor: student['tieneReprobado']
+                      ? Colors.orange
+                      : student['promedio'] >= 7
+                          ? Colors.green
+                          : Colors.red,
+                  label: Text(
+                    'Promedio: ${student['promedio'].toStringAsFixed(2)}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (student['calificaciones'].isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: student['calificaciones'].map<Widget>((calif) {
+                  return Chip(
+                    label: Text(calif.toStringAsFixed(1)),
+                    backgroundColor: calif < 7
+                        ? Colors.red[100]
+                        : Colors.green[100],
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget buildDataTable(List<List<dynamic>> data) {
     if (data.isEmpty) return Container();
 
-    final headers = data[0]; // Primera fila = encabezados
+    final headers = data[0];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        const SizedBox(height: 20),
         Center(
           child: Text(
-            "Datos CSV",
+            "Tabla de calificación",
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -211,67 +242,58 @@ class CSVUploaderState extends State<CSVUploader> {
           ),
         ),
         const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal, // Soporta muchas columnas
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-              color: Colors.white,
-            ),
-            child: DataTable(
-              columnSpacing: 20,
-              columns:
-                  headers.map((header) {
-                    return DataColumn(
-                      label: Text(
-                        header.toString(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    );
-                  }).toList(),
-              rows:
-                  data.sublist(1).map((row) {
-                    return DataRow(
-                      cells:
-                          row.map((cell) {
-                            Color cellColor = Colors.black; // Color por defecto
-                            if (cell is num) {
-                              if (cell < 7) {
-                                cellColor =
-                                    Colors.red; // Calificación baja en rojo
-                              } else {
-                                cellColor =
-                                    Colors.green; // Calificación buena en verde
-                              }
-                            }
-                            return DataCell(
-                              Text(
-                                cell.toString(),
-                                style: TextStyle(color: cellColor),
-                              ),
-                            );
-                          }).toList(),
-                    );
-                  }).toList(),
+        Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: DataTable(
+                columnSpacing: 20,
+                columns: headers.map((header) {
+                  return DataColumn(
+                    label: Text(
+                      header.toString(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }).toList(),
+                rows: data.sublist(1).map((row) {
+                  return DataRow(
+                    cells: List.generate(row.length, (index) {
+                      final cell = row[index];
+                      Color cellColor = Colors.black;
+
+                      if (index != 0 && cell is num) {
+                        cellColor = cell < 7 ? Colors.red : Colors.green;
+                      }
+
+                      return DataCell(
+                        Text(
+                          cell.toString(),
+                          style: TextStyle(color: cellColor),
+                        ),
+                      );
+                    }),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),
       ],
     );
   }
-
-  // ============================
-  //  Interfaz principal
-  // ============================
 
   @override
   Widget build(BuildContext context) {
@@ -286,8 +308,6 @@ class CSVUploaderState extends State<CSVUploader> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-
-              // Título principal
               Center(
                 child: Text(
                   'Bienvenido al Sistema de Predicción de Deserción Estudiantil',
@@ -298,64 +318,40 @@ class CSVUploaderState extends State<CSVUploader> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Descripción del sistema
               Text(
-                'Este sistema permite predecir la deserción estudiantil basado en datos históricos. Puedes cargar un archivo CSV con información de los estudiantes para analizar su desempeño.',
+                'Instrucciones: Ingresa un archivo de Excel guardado con extensión CSV (separado por comas), procura seleccionar archivos que contengan nombre de los alumnos como primera columna y materias en las primeras filas.',
                 style: const TextStyle(fontSize: 16, color: Colors.black),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 20),
-
-              // Botón para subir CSV
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Column(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: pickFile,
-                        icon: const Icon(
-                          Icons.upload_file,
-                          color: Colors.white,
-                        ),
-                        label: const Text("Seleccionar CSV"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFA726),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        "Selecciona el archivo CSV a subir.",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
+              ElevatedButton.icon(
+                onPressed: pickFile,
+                icon: const Icon(Icons.upload_file, color: Colors.white),
+                label: const Text("Seleccionar archivo"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFA726),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                ),
               ),
-
+              const SizedBox(height: 5),
+              const Text(
+                "CSV (separado por comas)",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               const SizedBox(height: 10),
-
-              // Ruta del archivo
               if (_selectedFile != null)
                 Text(
                   "Archivo seleccionado: ${_selectedFile!.path}",
                   style: const TextStyle(color: Colors.black),
                 ),
-
               const SizedBox(height: 20),
-
-              // Confirmación de carga
               if (_tableProjected)
                 Card(
                   elevation: 4,
@@ -370,25 +366,19 @@ class CSVUploaderState extends State<CSVUploader> {
                         Icon(Icons.check_circle, color: Colors.green, size: 28),
                         SizedBox(width: 10),
                         Text(
-                          "Se ha proyectado tu tabla correctamente.",
+                          "Selección exitosa",
                           style: TextStyle(fontSize: 16, color: Colors.black87),
                         ),
                       ],
                     ),
                   ),
                 ),
-
               const SizedBox(height: 20),
-
-              // Indicador de carga
               if (_isLoading)
                 const CircularProgressIndicator()
               else
-                buildDataTable(_csvData), // Tabla de datos CSV
-
+                buildDataTable(_csvData),
               const SizedBox(height: 20),
-
-              // Tabla de estudiantes reprobados
               if (_tableProjected)
                 if (getReprobados(_csvData).length > 1)
                   Column(
@@ -406,17 +396,14 @@ class CSVUploaderState extends State<CSVUploader> {
                   )
                 else
                   const Text("No se encontraron estudiantes reprobados."),
-
               const SizedBox(height: 30),
-
-              // Botón para generar recomendaciones IA
               if (_tableProjected)
                 ElevatedButton.icon(
-                  onPressed: generateAIRecommendations,
-                  icon: const Icon(Icons.smart_toy),
-                  label: const Text("Generar Recomendaciones IA"),
+                  onPressed: calculateAverages,
+                  icon: const Icon(Icons.calculate, color: Colors.white),
+                  label: const Text("Calcular Promedios"),  
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
+                    backgroundColor: const Color.fromARGB(255, 234, 165, 6),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -426,24 +413,57 @@ class CSVUploaderState extends State<CSVUploader> {
                     ),
                   ),
                 ),
-
               const SizedBox(height: 20),
-
-              // Recomendaciones IA
+              if (_studentAverages.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Promedios Estudiantiles",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 240, 158, 7),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ..._studentAverages.map((student) => _buildAverageCard(student)).toList(),
+                  ],
+                ),
+              const SizedBox(height: 20),
               if (_aiRecommendations.isNotEmpty)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Recomendaciones de IA:",
+                      "Recomendaciones:",
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 240, 158, 7),
                       ),
                     ),
                     const SizedBox(height: 10),
                     ..._aiRecommendations.map((e) {
-                      return Text(e, style: const TextStyle(fontSize: 16));
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.lightbulb_outline, color: Colors.amber),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  e,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     }).toList(),
                   ],
                 ),
